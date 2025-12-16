@@ -39,7 +39,7 @@ jobs:
           ls -la assets/
           test -f assets/icon.icns || { echo "Error: icon.icns not found"; exit 1; }
           test -f assets/icon.ico || { echo "Error: icon.ico not found"; exit 1; }
-          echo "✓ All required assets found"
+          echo "All required assets found"
 
       - name: Build application
         run: npm run build
@@ -80,13 +80,13 @@ jobs:
           npm install
         shell: powershell
 
-      - name: Verify assets exist
+      - name: Verify assets exist (Windows)
         run: |
           Write-Host "Checking for required assets..."
           Get-ChildItem assets
           if (-not (Test-Path "assets/icon.icns")) { Write-Host "Error: icon.icns not found"; exit 1 }
           if (-not (Test-Path "assets/icon.ico")) { Write-Host "Error: icon.ico not found"; exit 1 }
-          Write-Host "✓ All required assets found"
+          Write-Host "All required assets found"
         shell: powershell
 
       - name: Build application

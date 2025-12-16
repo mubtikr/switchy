@@ -1,63 +1,220 @@
 name: Release
 
+permissions:
+  contents: write
+  id-token: write
+
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
 
 jobs:
-  release:
+  build:
     runs-on: ${{ matrix.os }}
-    
+    timeout-minutes: 15
+
     strategy:
       matrix:
+        node_version: [20.x]
         os: [macos-latest, windows-latest]
-        include:
-          - os: macos-latest
-            build_script: package:mac
-            artifact_pattern: |
-              release/*.dmg
-              release/*.zip
-          - os: windows-latest
-            build_script: package:win
-            artifact_pattern: release/*.exe
+      fail-fast: false
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Python (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set node version to ${{ matrix.node_version }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ matrix.node_version }}
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Clean and install (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          npm cache clean --force
+          rm -rf node_modules package-lock.json
+          npm install
 
-      - name: Build application
-        run: npm run build
+      - name: Clean and install (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          npm cache clean --force
+          Remove-Item -Path node_modules -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path package-lock.json -Force -ErrorAction SilentlyContinue
+          npm install
+        shell: powershell
 
-      - name: Package application
-        run: npm run ${{ matrix.build_script }}
+      - name: Build and package (macOS)
+        if: matrix.os == 'macos-latest'
+        run: npm run package:mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Uncomment for code signing (requires secrets setup)
-          # macOS code signing
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          # CSC_LINK: ${{ secrets.CSC_LINK }}
-          # CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # Windows code signing
-          # CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
-          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
 
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v1
+      - name: Build and package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: npm run package:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifacts
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
         with:
-          files: ${{ matrix.artifact_pattern }}
+          name: switchy-macos
+          path: |
+            release/*.dmg
+            release/*.zip
+          retention-days: 7
+
+      - name: Upload Windows artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: switchy-windows
+          path: |
+            release/*.exe
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get package version
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Delete existing release and tag if exists
+        run: |
+          VERSION="${{ env.PACKAGE_VERSION }}"
+          
+          # Try to delete existing release
+          RELEASE_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION" \
+            | jq -r '.id // empty')
+          
+          if [ ! -z "$RELEASE_ID" ]; then
+            echo "Deleting existing release with ID: $RELEASE_ID"
+            curl -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+          fi
+          
+          # Try to delete existing tag
+          curl -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$VERSION" 2>/dev/null || true
+        continue-on-error: true
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: switchy-macos
+          path: release-assets/macos
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: switchy-windows
+          path: release-assets/windows
+
+      - name: List downloaded artifacts
+        run: |
+          echo "=== Downloaded artifacts ==="
+          find release-assets -type f
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ env.PACKAGE_VERSION }}
+          release_name: Switchy v${{ env.PACKAGE_VERSION }}
+          body: |
+            ## Switchy v${{ env.PACKAGE_VERSION }}
+            
+            Smart keyboard layout converter for macOS & Windows
+            
+            ### Downloads
+            - **macOS**: Download the `.dmg` or `.zip` file
+            - **Windows**: Download the `.exe` installer
+            
+            ### What's New
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           draft: false
           prerelease: false
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS DMG (x64)
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}.dmg
+          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-x64.dmg
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload macOS DMG (arm64)
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}-arm64.dmg
+          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-arm64.dmg
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload macOS ZIP (x64)
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}-mac.zip
+          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-x64.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload macOS ZIP (arm64)
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}-arm64-mac.zip
+          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-arm64.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Find and upload Windows EXE
+        run: |
+          EXE_FILE=$(find release-assets/windows -name "*.exe" -type f | head -n 1)
+          if [ ! -z "$EXE_FILE" ]; then
+            echo "Found EXE: $EXE_FILE"
+            EXE_NAME=$(basename "$EXE_FILE")
+            
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$EXE_FILE" \
+              "${{ steps.create_release.outputs.upload_url }}?name=Switchy-${{ env.PACKAGE_VERSION }}-win.exe"
+          else
+            echo "No Windows EXE file found"
+          fi
+        continue-on-error: true
