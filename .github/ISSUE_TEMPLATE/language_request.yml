@@ -1,0 +1,71 @@
+name: Language Support Request
+description: Request support for a new language pair
+title: "[Language]: Add support for [Language] ↔ English"
+labels: ["language-support", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for requesting a new language! This helps make Switchy more useful for everyone.
+
+  - type: input
+    id: language
+    attributes:
+      label: Language Name
+      description: What language would you like to add?
+      placeholder: "e.g., Hebrew, Korean, Greek"
+    validations:
+      required: true
+
+  - type: input
+    id: keyboard-layout
+    attributes:
+      label: Keyboard Layout Name
+      description: What is the keyboard layout called in your OS?
+      placeholder: "e.g., Hebrew, Korean (2-Set), Greek Polytonic"
+    validations:
+      required: true
+
+  - type: textarea
+    id: character-mapping
+    attributes:
+      label: Character Mapping
+      description: |
+        Please provide a mapping of characters between this language and English QWERTY.
+        For example, for Arabic:
+        Q → ض  W → ص  E → ث  R → ق  etc.
+      placeholder: |
+        Q → [character]
+        W → [character]
+        E → [character]
+        ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Which OS keyboard layout are you using?
+      options:
+        - macOS
+        - Windows
+        - Both
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Can you help with this language support?
+      options:
+        - label: I can provide complete character mappings
+        - label: I can test the implementation
+        - label: I can submit a PR with the implementation
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Any special considerations for this language? (e.g., RTL, special characters, ligatures)

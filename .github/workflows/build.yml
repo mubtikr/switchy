@@ -1,0 +1,92 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify assets exist
+        run: |
+          echo "Checking for required assets..."
+          ls -la assets/
+          test -f assets/icon.icns || { echo "Error: icon.icns not found"; exit 1; }
+          test -f assets/icon.ico || { echo "Error: icon.ico not found"; exit 1; }
+          echo "✓ All required assets found"
+
+      - name: Build application
+        run: npm run build
+
+      - name: Package macOS app
+        run: npm run package:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: switchy-macos-${{ github.sha }}
+          path: |
+            release/*.dmg
+            release/*.zip
+          retention-days: 30
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify assets exist
+        run: |
+          echo "Checking for required assets..."
+          dir assets
+          if (-not (Test-Path "assets/icon.icns")) { echo "Error: icon.icns not found"; exit 1 }
+          if (-not (Test-Path "assets/icon.ico")) { echo "Error: icon.ico not found"; exit 1 }
+          echo "✓ All required assets found"
+        shell: pwsh
+
+      - name: Build application
+        run: npm run build
+
+      - name: Package Windows app
+        run: npm run package:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: switchy-windows-${{ github.sha }}
+          path: |
+            release/*.exe
+          retention-days: 30
+          if-no-files-found: error

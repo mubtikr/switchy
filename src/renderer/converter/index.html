@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Switchy Converter</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 24px;
+      user-select: none;
+      -webkit-app-region: drag;
+      overflow: hidden;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(20px);
+      -webkit-app-region: no-drag;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .conversion-section {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 24px;
+    }
+
+    .text-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select {
+      padding: 6px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-app-region: no-drag;
+    }
+
+    select:hover {
+      border-color: #667eea;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      padding: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: inherit;
+      line-height: 1.6;
+      resize: vertical;
+      transition: all 0.2s;
+      -webkit-app-region: no-drag;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    #outputText {
+      background: #f9fafb;
+    }
+
+    .arrow-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 32px;
+    }
+
+    .arrow {
+      font-size: 32px;
+      color: #667eea;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 0.6;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-app-region: no-drag;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-convert {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-convert:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .btn-convert:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e7eb;
+      transform: translateY(-1px);
+    }
+
+    .close-hint {
+      margin-top: 20px;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .close-hint kbd {
+      padding: 2px 6px;
+      background: #f3f4f6;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    /* Slide in animation */
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .container {
+      animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔄 Switchy</h1>
+      <div class="subtitle">Smart Text Converter</div>
+    </div>
+
+    <div class="conversion-section">
+      <!-- Input side -->
+      <div class="text-box">
+        <div class="box-header">
+          <label>From</label>
+          <select id="fromLang">
+            <option value="auto">🎯 Auto Detect</option>
+            <option value="AR">🇸🇦 Arabic</option>
+            <option value="EN">🇺🇸 English</option>
+            <option value="FR">🇫🇷 French</option>
+            <option value="RU">🇷🇺 Russian</option>
+            <option value="DE">🇩🇪 German</option>
+            <option value="ES">🇪🇸 Spanish</option>
+          </select>
+        </div>
+        <textarea id="inputText" placeholder="Type or paste your text here..."></textarea>
+      </div>
+
+      <!-- Arrow -->
+      <div class="arrow-container">
+        <div class="arrow">→</div>
+      </div>
+
+      <!-- Output side -->
+      <div class="text-box">
+        <div class="box-header">
+          <label>To</label>
+          <select id="toLang">
+            <option value="EN">🇺🇸 English</option>
+            <option value="AR">🇸🇦 Arabic</option>
+            <option value="FR">🇫🇷 French</option>
+            <option value="RU">🇷🇺 Russian</option>
+            <option value="DE">🇩🇪 German</option>
+            <option value="ES">🇪🇸 Spanish</option>
+          </select>
+        </div>
+        <textarea id="outputText" placeholder="Converted text will appear here..." readonly></textarea>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-convert" id="convertBtn">
+        <span>✨</span>
+        <span>Convert</span>
+      </button>
+      <button class="btn-secondary" id="copyBtn">
+        <span>📋</span>
+        <span>Copy</span>
+      </button>
+      <button class="btn-secondary" id="clearBtn">
+        <span>🗑️</span>
+        <span>Clear</span>
+      </button>
+    </div>
+
+    <div class="close-hint">
+      Press <kbd>Esc</kbd> to close window
+    </div>
+  </div>
+
+  <script type="module" src="./converter.ts"></script>
+</body>
+</html>
