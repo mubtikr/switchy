@@ -91,6 +91,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get package version
         id: get_version
@@ -98,13 +101,14 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version in package.json: $VERSION"
 
       - name: Determine version bump
         id: version_bump
         run: |
           # Get the last commit message
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          echo "Commit message: $COMMIT_MSG"
+          echo "Last commit message: $COMMIT_MSG"
           
           CURRENT_VERSION="${{ env.PACKAGE_VERSION }}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
