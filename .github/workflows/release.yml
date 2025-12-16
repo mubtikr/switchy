@@ -136,85 +136,53 @@ jobs:
           echo "=== Downloaded artifacts ==="
           find release-assets -type f
 
+      - name: Prepare release files
+        run: |
+          mkdir -p release-final
+          
+          # Copy and rename macOS files
+          cp release-assets/macos/Switchy-*.dmg release-final/ 2>/dev/null || true
+          cp release-assets/macos/Switchy-*-mac.zip release-final/ 2>/dev/null || true
+          
+          # Copy Windows files
+          cp release-assets/windows/*.exe release-final/Switchy-${{ env.PACKAGE_VERSION }}-win.exe 2>/dev/null || true
+          
+          echo "=== Files prepared for release ==="
+          ls -lah release-final/
+
       - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.PACKAGE_VERSION }}
-          release_name: Switchy v${{ env.PACKAGE_VERSION }}
+          name: Switchy v${{ env.PACKAGE_VERSION }}
           body: |
             ## Switchy v${{ env.PACKAGE_VERSION }}
             
             Smart keyboard layout converter for macOS & Windows
             
             ### Downloads
-            - **macOS**: Download the `.dmg` or `.zip` file
-            - **Windows**: Download the `.exe` installer
+            - **macOS Intel (x64)**: Download `Switchy-${{ env.PACKAGE_VERSION }}.dmg` or `.zip`
+            - **macOS Apple Silicon (arm64)**: Download `Switchy-${{ env.PACKAGE_VERSION }}-arm64.dmg` or `.zip`
+            - **Windows**: Download `Switchy-${{ env.PACKAGE_VERSION }}-win.exe`
             
             ### What's New
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+            
+            ### Installation
+            
+            **macOS:**
+            1. Download the appropriate `.dmg` file for your Mac
+            2. Open the `.dmg` and drag Switchy to Applications
+            3. Grant Accessibility permissions when prompted
+            
+            **Windows:**
+            1. Download the `.exe` installer
+            2. Run the installer and follow the setup wizard
+            3. Launch Switchy from the Start menu
           draft: false
           prerelease: false
+          files: |
+            release-final/*
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload macOS DMG (x64)
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}.dmg
-          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-x64.dmg
-          asset_content_type: application/octet-stream
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      - name: Upload macOS DMG (arm64)
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}-arm64.dmg
-          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-arm64.dmg
-          asset_content_type: application/octet-stream
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      - name: Upload macOS ZIP (x64)
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}-mac.zip
-          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-x64.zip
-          asset_content_type: application/zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      - name: Upload macOS ZIP (arm64)
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-assets/macos/Switchy-${{ env.PACKAGE_VERSION }}-arm64-mac.zip
-          asset_name: Switchy-${{ env.PACKAGE_VERSION }}-mac-arm64.zip
-          asset_content_type: application/zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      - name: Find and upload Windows EXE
-        run: |
-          EXE_FILE=$(find release-assets/windows -name "*.exe" -type f | head -n 1)
-          if [ ! -z "$EXE_FILE" ]; then
-            echo "Found EXE: $EXE_FILE"
-            EXE_NAME=$(basename "$EXE_FILE")
-            
-            curl -X POST \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary @"$EXE_FILE" \
-              "${{ steps.create_release.outputs.upload_url }}?name=Switchy-${{ env.PACKAGE_VERSION }}-win.exe"
-          else
-            echo "No Windows EXE file found"
-          fi
-        continue-on-error: true
