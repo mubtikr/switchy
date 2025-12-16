@@ -99,6 +99,52 @@ jobs:
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Determine version bump
+        id: version_bump
+        run: |
+          # Get the last commit message
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit message: $COMMIT_MSG"
+          
+          CURRENT_VERSION="${{ env.PACKAGE_VERSION }}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          
+          # Determine bump type based on commit message
+          if echo "$COMMIT_MSG" | grep -qiE "^(feat|feature):"; then
+            # Feature: bump minor version
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            echo "Bumping MINOR version (feat)"
+          elif echo "$COMMIT_MSG" | grep -qiE "^(fix|chore|docs|style|refactor|perf|test):"; then
+            # Fix/chore: bump patch version
+            PATCH=$((PATCH + 1))
+            echo "Bumping PATCH version (fix/chore)"
+          elif echo "$COMMIT_MSG" | grep -qiE "^(breaking|BREAKING):"; then
+            # Breaking change: bump major version
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            echo "Bumping MAJOR version (breaking)"
+          else
+            # Default: bump patch
+            PATCH=$((PATCH + 1))
+            echo "Default PATCH bump"
+          fi
+          
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version will be: $NEW_VERSION"
+
+      - name: Update package.json version
+        run: |
+          npm version ${{ env.NEW_VERSION }} --no-git-tag-version
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${{ env.NEW_VERSION }} [skip ci]" || true
+          git push origin main || true
+
       - name: Delete existing release and tag if exists
         run: |
           VERSION="${{ env.PACKAGE_VERSION }}"
@@ -141,11 +187,17 @@ jobs:
           mkdir -p release-final
           
           # Copy and rename macOS files
-          cp release-assets/macos/Switchy-*.dmg release-final/ 2>/dev/null || true
-          cp release-assets/macos/Switchy-*-mac.zip release-final/ 2>/dev/null || true
+          find release-assets/macos -name "*.dmg" -exec cp {} release-final/ \;
+          find release-assets/macos -name "*.zip" -exec cp {} release-final/ \;
           
-          # Copy Windows files
-          cp release-assets/windows/*.exe release-final/Switchy-${{ env.PACKAGE_VERSION }}-win.exe 2>/dev/null || true
+          # Copy Windows files (handle spaces in filenames)
+          find release-assets/windows -name "*.exe" -type f | while read -r file; do
+            if [[ "$file" == *"Setup"* ]]; then
+              cp "$file" "release-final/Switchy-${{ env.NEW_VERSION }}-win-setup.exe"
+            else
+              cp "$file" "release-final/Switchy-${{ env.NEW_VERSION }}-win.exe"
+            fi
+          done
           
           echo "=== Files prepared for release ==="
           ls -lah release-final/
@@ -153,17 +205,18 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.PACKAGE_VERSION }}
-          name: Switchy v${{ env.PACKAGE_VERSION }}
+          tag_name: ${{ env.NEW_VERSION }}
+          name: Switchy v${{ env.NEW_VERSION }}
           body: |
-            ## Switchy v${{ env.PACKAGE_VERSION }}
+            ## Switchy v${{ env.NEW_VERSION }}
             
             Smart keyboard layout converter for macOS & Windows
             
             ### Downloads
-            - **macOS Intel (x64)**: Download `Switchy-${{ env.PACKAGE_VERSION }}.dmg` or `.zip`
-            - **macOS Apple Silicon (arm64)**: Download `Switchy-${{ env.PACKAGE_VERSION }}-arm64.dmg` or `.zip`
-            - **Windows**: Download `Switchy-${{ env.PACKAGE_VERSION }}-win.exe`
+            - **macOS Intel (x64)**: Download `Switchy-${{ env.NEW_VERSION }}.dmg` or `.zip`
+            - **macOS Apple Silicon (arm64)**: Download `Switchy-${{ env.NEW_VERSION }}-arm64.dmg` or `.zip`
+            - **macOS Universal**: Download `Switchy-${{ env.NEW_VERSION }}-universal.dmg` or `.zip`
+            - **Windows**: Download `Switchy-${{ env.NEW_VERSION }}-win-setup.exe`
             
             ### What's New
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
