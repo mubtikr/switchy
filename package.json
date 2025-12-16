@@ -1,6 +1,6 @@
 {
   "name": "switchy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Smart keyboard layout converter - Convert text typed in the wrong language with intelligent layout detection",
   "main": "dist/main/main/main.js",
   "author": "Mubtikr",
