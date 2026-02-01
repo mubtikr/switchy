@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - German ↔ English language support (QWERTZ keyboard layout)
 - Spanish ↔ English language support (QWERTY España layout)
 
+### Fixed
+- Windows build failure by using Python 3.11 instead of Python 3.12
+  - Python 3.12+ removed the `distutils` module required by `node-gyp`
+  - Updated GitHub Actions workflows (build.yml and release.yml)
+  - Updated documentation to specify Python 3.11 requirement for Windows builds
+
 ### Planned
 - Settings window with UI
 - Conversion history

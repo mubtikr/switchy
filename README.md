@@ -70,6 +70,8 @@ Switchy intelligently detects your current keyboard layout and converts selected
 
 - macOS 10.13+ or Windows 10+
 - Node.js 18+ and npm
+- **Python 3.11** (required for building native dependencies like `robotjs` on Windows)
+  - Python 3.12+ is not compatible with `node-gyp` due to the removal of the `distutils` module
 
 ### Development Setup
 

@@ -18,6 +18,9 @@ Thank you for your interest in contributing to Switchy! This document provides g
 - Node.js 18+ and npm
 - Git
 - macOS 10.13+ or Windows 10+ (for testing)
+- **Python 3.11** (required for building native dependencies on Windows)
+  - Python 3.12+ is not compatible with `node-gyp` due to removal of `distutils` module
+  - Install Python 3.11 from [python.org](https://www.python.org/downloads/release/python-3119/)
 - Basic TypeScript knowledge
 
 ### Development Setup

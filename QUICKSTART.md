@@ -71,11 +71,16 @@ Quick example for French:
 
 ## 8. Building for Production
 
+**Important for Windows users:**
+- Requires Python 3.11 for building native dependencies
+- Python 3.12+ is not compatible (missing `distutils` module)
+- On Windows, install Python 3.11 from python.org or use py launcher
+
 ```bash
 # macOS
 npm run package:mac
 
-# Windows
+# Windows (ensure Python 3.11 is in PATH)
 npm run package:win
 
 # Find installer in: release/
