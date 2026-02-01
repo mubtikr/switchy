@@ -99,7 +99,7 @@ npm run package:mac
 
 ### Example Flow:
 ```
-You're on Arabic keyboard → Type "hello" → Get "ويممخ"
+You're on Arabic keyboard → Type "hello" → Get "ويممخ" 
 ↓
 Select "ويممخ" → Press Cmd+Shift+Space
 ↓

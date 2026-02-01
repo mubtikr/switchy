@@ -25,7 +25,7 @@ Thank you for your interest in contributing to Switchy! This document provides g
 1. **Fork the repository**
    ```bash
    # Click "Fork" on GitHub, then clone your fork
-   git clone https://github.com/YOUR_USERNAME/switchy.git
+   git clone https://github.com/mubtikr/switchy.git
    cd switchy
    ```
 

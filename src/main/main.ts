@@ -71,19 +71,31 @@ class SwitchyApp {
   private async onAppReady() {
     log.info('App ready, initializing...');
 
-    // Hide dock icon on macOS
-    if (process.platform === 'darwin') {
-      app.dock.hide();
-    }
-
-    // Check permissions
+    // Check permissions first
     await this.checkPermissions();
 
     // Setup IPC handlers
     setupIPC(this);
 
-    // Create system tray
-    this.createTray();
+    // Create system tray (this must succeed for the app to work)
+    try {
+      this.createTray();
+    } catch (error) {
+      log.error('Failed to create system tray:', error);
+      // Show an error message to the user
+      const { dialog } = require('electron');
+      dialog.showErrorBox(
+        'Switchy Error',
+        `Failed to load application icon. Please reinstall the application.\n\nError: ${error}`
+      );
+      app.quit();
+      return;
+    }
+
+    // Hide dock icon on macOS after tray is created successfully
+    if (process.platform === 'darwin') {
+      app.dock.hide();
+    }
 
     // Register global shortcuts
     this.registerShortcuts();
@@ -116,13 +128,18 @@ class SwitchyApp {
   private createTray() {
     const iconPath = this.getTrayIconPath();
     const icon = nativeImage.createFromPath(iconPath);
-    
+
+    if (icon.isEmpty()) {
+      log.error('Failed to load tray icon from:', iconPath);
+      throw new Error('Failed to load tray icon. App cannot start without a valid icon.');
+    }
+
     // Resize for tray (16x16 on macOS, 16x16 on Windows)
     const trayIcon = icon.resize({ width: 16, height: 16 });
-    
+
     this.tray = new Tray(trayIcon);
     this.tray.setToolTip(`${APP_NAME} - Current Layout: ${this.currentLayout}`);
-    
+
     this.updateTrayMenu();
 
     // macOS: Single click to show menu
@@ -136,16 +153,41 @@ class SwitchyApp {
 
   private getTrayIconPath(): string {
     const isDev = !app.isPackaged;
-    const assetsPath = isDev 
-      ? path.join(__dirname, '../../assets')
-      : path.join(process.resourcesPath, 'assets');
+
+    // In development, go up from dist/main/main to project root
+    // In production, use process.resourcesPath (where electron-builder extracts files)
+    let assetsPath: string;
+
+    if (isDev) {
+      // Development: path from dist/main/main -> ../../ -> assets
+      assetsPath = path.join(__dirname, '../../../assets');
+    } else {
+      // Production: use the resources path
+      assetsPath = path.join(process.resourcesPath, 'assets');
+    }
+
+    let iconPath: string;
 
     if (process.platform === 'darwin') {
-      return path.join(assetsPath, 'iconTemplate.png');
+      // Try iconTemplate.png first (standard macOS tray icon), fall back to icon.png
+      const templateIcon = path.join(assetsPath, 'iconTemplate.png');
+      const defaultIcon = path.join(assetsPath, 'icon.png');
+
+      const fs = require('fs');
+      if (fs.existsSync(templateIcon)) {
+        iconPath = templateIcon;
+      } else {
+        log.warn('iconTemplate.png not found, using icon.png as fallback');
+        iconPath = defaultIcon;
+      }
     } else if (process.platform === 'win32') {
-      return path.join(assetsPath, 'icon.ico');
+      iconPath = path.join(assetsPath, 'icon.ico');
+    } else {
+      iconPath = path.join(assetsPath, 'icon.png');
     }
-    return path.join(assetsPath, 'icon.png');
+
+    log.info('Loading tray icon from:', iconPath);
+    return iconPath;
   }
 
   private updateTrayMenu() {
